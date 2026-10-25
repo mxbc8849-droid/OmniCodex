@@ -12,7 +12,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with: {flutter-version: '3.24.5', channel: stable}
+      - name: Install Windows build tools
+        shell: powershell
+        run: |
+          choco install cmake ninja --no-progress -y
+          refreshenv
       - run: flutter config --enable-windows-desktop
+      - uses: microsoft/setup-msbuild@v2
+      - name: Check Windows toolchain
+        run: |
+          flutter doctor -v
+          cmake --version
+          ninja --version
       - run: flutter create . --platforms=windows
         working-directory: client
       - run: flutter pub get
