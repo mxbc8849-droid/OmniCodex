@@ -17,6 +17,7 @@ jobs:
         working-directory: client
       - run: flutter pub get
         working-directory: client
+      - uses: ilammy/msvc-dev-cmd@v1
       - run: flutter build windows --release --dart-define=OMNI_API_BASE_URL=https://www.udn4f.com
         working-directory: client
       - uses: actions/upload-artifact@v4
