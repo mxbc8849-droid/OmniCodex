@@ -29,10 +29,25 @@ jobs:
       - run: flutter pub get
         working-directory: client
       - uses: ilammy/msvc-dev-cmd@v1
-      - run: flutter build windows --release --dart-define=OMNI_API_BASE_URL=https://www.udn4f.com
+      - name: Build Windows desktop (verbose)
+        shell: powershell
         working-directory: client
+        run: |
+          $ErrorActionPreference = 'Continue'
+          flutter build windows --release --dart-define=OMNI_API_BASE_URL=https://www.udn4f.com -v 2>&1 | Tee-Object -FilePath windows-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with: {name: omnicodex-windows, path: client/build/windows/x64/runner/Release}
+      - name: Upload Windows diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: omnicodex-windows-diagnostics
+          if-no-files-found: warn
+          path: |
+            client/windows-build.log
+            client/build/windows/**/CMakeCache.txt
+            client/build/windows/**/build.ninja
   web:
     runs-on: ubuntu-latest
     steps:
