@@ -6,6 +6,8 @@ ALERT=${OMNICODEX_ALERT_WEBHOOK:-}
 TG_TOKEN=${OMNICODEX_TELEGRAM_BOT_TOKEN:-}
 TG_CHAT=${OMNICODEX_TELEGRAM_CHAT_ID:-}
 msg=''
+disk_pct=$(df -P /opt/omnicodex | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+if [ "${disk_pct:-0}" -ge "${OMNICODEX_DISK_ALERT_PERCENT:-80}" ]; then msg="OmniCodex disk usage is ${disk_pct}%"; fi
 if ! curl --fail --silent --show-error --max-time 15 "$URL" >/dev/null; then msg="OmniCodex health check failed: $URL"; fi
 if ! docker compose -f "$ROOT/docker-compose.yml" ps --status running | grep -q omnicodex-api; then msg="OmniCodex API container is not running"; fi
 if [ -n "$msg" ]; then
