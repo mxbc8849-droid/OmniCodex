@@ -104,7 +104,7 @@ async def decide(aid:str,decision:str,user=Depends(current)):
   a.status='approved' if decision=='approve' else 'denied'; a.decided_by=user.id; await s.commit()
  await publish(user.id,{'type':'approval.resolved','approval_id':aid,'status':a.status}); return {'status':a.status}
 @app.post('/v1/ssh/execute')
-async def ssh(d:SSHI,user=Depends(current)):
+async def ssh(d:SSHIn,user=Depends(current)):
  try: first=shlex.split(d.command)[0]
  except (ValueError,IndexError): raise HTTPException(400,'invalid command')
  if first not in COMMAND_ALLOWLIST: raise HTTPException(403,'command is not allowlisted')
