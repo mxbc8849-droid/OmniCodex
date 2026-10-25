@@ -1,6 +1,6 @@
 name: omnicodex_client
 description: OmniCodex cross-platform client
-# Build targets: Windows, iOS, and web.
+# Build targets: Windows, iOS, and web (desktop enabled in CI).
 publish_to: none
 version: 0.1.0+1
 environment:
