@@ -12,6 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with: {flutter-version: '3.24.5', channel: stable}
+      - run: flutter create . --platforms=windows
+        working-directory: client
       - run: flutter pub get
         working-directory: client
       - run: flutter build windows --release --dart-define=OMNI_API_BASE_URL=https://www.udn4f.com
@@ -24,6 +26,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with: {flutter-version: '3.24.5', channel: stable}
+      - run: flutter create . --platforms=web
+        working-directory: client
       - run: flutter pub get
         working-directory: client
       - run: flutter build web --release --dart-define=OMNI_API_BASE_URL=https://www.udn4f.com
@@ -36,6 +40,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with: {flutter-version: '3.24.5', channel: stable}
+      - run: flutter create . --platforms=ios
+        working-directory: client
       - run: flutter pub get
         working-directory: client
       - run: flutter build ios --release --no-codesign --dart-define=OMNI_API_BASE_URL=https://www.udn4f.com
