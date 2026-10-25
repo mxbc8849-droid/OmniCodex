@@ -10,8 +10,8 @@ if ! curl --fail --silent --show-error --max-time 15 "$URL" >/dev/null; then msg
 if ! docker compose -f "$ROOT/docker-compose.yml" ps --status running | grep -q omnicodex-api; then msg="OmniCodex API container is not running"; fi
 if [ -n "$msg" ]; then
   logger -t omnicodex-monitor "$msg"
-  if [ -n "$ALERT" ]; then curl --fail --silent --max-time 10 -H 'Content-Type: application/json' -d "{\"text\":\"$msg\"}" "$ALERT" || true; fi
-  if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ]; then curl --fail --silent --max-time 10 -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" --data-urlencode "chat_id=$TG_CHAT" --data-urlencode "text=$msg" >/dev/null || true; fi
+  if [ -n "$ALERT" ]; then for n in 1 2 3; do curl --fail --silent --max-time 10 -H 'Content-Type: application/json' -d "{\"text\":\"$msg\"}" "$ALERT" && break || sleep $((n * 2)); done; fi
+  if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ]; then for n in 1 2 3; do curl --fail --silent --max-time 10 -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" --data-urlencode "chat_id=$TG_CHAT" --data-urlencode "text=$msg" >/dev/null && break || sleep $((n * 2)); done; fi
   exit 1
 fi
 echo "healthy $(date -u +%FT%TZ)"

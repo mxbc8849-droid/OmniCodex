@@ -147,6 +147,12 @@ jobs:
             -H 'Content-Type: application/json' \
             -d '{"email":"ci@example.com","password":"ci-password-123"}' > compose-auth.json
           test -s compose-auth.json
+      - name: Run backup and restore drill
+        run: |
+          chmod +x ops/backup.sh ops/restore-drill.sh
+          sudo mkdir -p /var/backups/omnicodex
+          sudo ops/backup.sh
+          sudo ops/restore-drill.sh
       - name: Capture Compose logs
         if: always()
         run: docker compose logs --no-color > compose-logs.txt
