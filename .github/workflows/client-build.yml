@@ -1,0 +1,44 @@
+name: OmniCodex Client Builds
+on:
+  workflow_dispatch:
+  push:
+    paths: ['client/**']
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.24.5', channel: stable}
+      - run: flutter pub get
+        working-directory: client
+      - run: flutter build windows --release --dart-define=OMNI_API_BASE_URL=https://www.udn4f.com
+        working-directory: client
+      - uses: actions/upload-artifact@v4
+        with: {name: omnicodex-windows, path: client/build/windows/x64/runner/Release}
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.24.5', channel: stable}
+      - run: flutter pub get
+        working-directory: client
+      - run: flutter build web --release --dart-define=OMNI_API_BASE_URL=https://www.udn4f.com
+        working-directory: client
+      - uses: actions/upload-artifact@v4
+        with: {name: omnicodex-web, path: client/build/web}
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.24.5', channel: stable}
+      - run: flutter pub get
+        working-directory: client
+      - run: flutter build ios --release --no-codesign --dart-define=OMNI_API_BASE_URL=https://www.udn4f.com
+        working-directory: client
+      - uses: actions/upload-artifact@v4
+        with: {name: omnicodex-ios-unsigned, path: client/build/ios/iphoneos}

@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class SyncStore {
-  static const apiBaseUrl = 'https://www.udn4f.com';
+  static const apiBaseUrl = String.fromEnvironment('OMNI_API_BASE_URL', defaultValue: 'https://www.udn4f.com');
   static const websocketBaseUrl = 'wss://www.udn4f.com';
   final String baseUrl; final String token;
   final Map<String, dynamic> projects = {}; dynamic cursor;
