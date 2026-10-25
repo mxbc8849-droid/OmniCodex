@@ -1,0 +1,7 @@
+[Unit]
+Description=OmniCodex database backup
+After=docker.service
+Requires=docker.service
+[Service]
+Type=oneshot
+ExecStart=/opt/omnicodex/ops/backup.sh

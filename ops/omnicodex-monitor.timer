@@ -1,0 +1,8 @@
+[Unit]
+Description=Every five minutes OmniCodex health check
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+[Install]
+WantedBy=timers.target

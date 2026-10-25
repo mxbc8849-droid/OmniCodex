@@ -1,0 +1,6 @@
+[Unit]
+Description=OmniCodex health monitor
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/opt/omnicodex/ops/health-monitor.sh
