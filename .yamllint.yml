@@ -1,0 +1,9 @@
+extends: relaxed
+ignore: |
+  .git/
+rules:
+  line-length: disable
+  truthy: disable
+  document-start: disable
+  brackets: disable
+  braces: disable
