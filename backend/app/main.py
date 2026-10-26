@@ -64,6 +64,24 @@ async def agent_task_status(tid:str,user=Depends(current)):
  t=agent_tasks.get(tid)
  if not t: raise HTTPException(404,'task not found')
  return t
+@app.post('/v1/agent/tasks/{tid}/run')
+async def agent_task_run(tid:str,user=Depends(current)):
+ t=agent_tasks.get(tid)
+ if not t: raise HTTPException(404,'task not found')
+ host=t.get('target_host') or os.getenv('AGENT_TARGET_HOST')
+ key=os.getenv('AGENT_SSH_KEY','/run/secrets/agent_id_ed25519'); username=os.getenv('AGENT_SSH_USER','root')
+ if not host or not os.path.exists(key): raise HTTPException(503,'agent SSH target or key is not configured')
+ t['status']='running'; await publish(user.id,{'type':'agent.task.started','task_id':tid})
+ commands=['command -v docker || true','command -v nginx || true','docker --version 2>/dev/null || true','nginx -v 2>&1 || true']
+ try:
+  async with asyncssh.connect(host,username=username,client_keys=[key],known_hosts=KNOWN_HOSTS) as c:
+   for i,cmd in enumerate(commands):
+    t['steps'][i if i<2 else 0]['status']='running'; await publish(user.id,{'type':'agent.step.running','task_id':tid,'command':cmd})
+    r=await c.run(cmd,check=False); await publish(user.id,{'type':'agent.step.output','task_id':tid,'command':cmd,'stdout':r.stdout,'stderr':r.stderr})
+   t['status']='completed'; t['result']='environment inspected'; await publish(user.id,{'type':'agent.task.completed','task_id':tid})
+   return t
+ except Exception as e:
+  t['status']='failed'; t['error']=str(e); await publish(user.id,{'type':'agent.task.failed','task_id':tid,'error':str(e)}); raise HTTPException(502,f'agent execution failed: {e}')
 @app.post('/v1/auth/register')
 async def register(d:Credentials):
  async with Session() as s:
