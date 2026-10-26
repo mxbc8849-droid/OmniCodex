@@ -72,7 +72,7 @@ async def agent_task_run(tid:str,user=Depends(current)):
  key=os.getenv('AGENT_SSH_KEY','/run/secrets/agent_id_ed25519'); username=os.getenv('AGENT_SSH_USER','root')
  if not host or not os.path.exists(key): raise HTTPException(503,'agent SSH target or key is not configured')
  t['status']='running'; await publish(user.id,{'type':'agent.task.started','task_id':tid})
- commands=['command -v docker || true','command -v nginx || true','docker --version 2>/dev/null || true','nginx -v 2>&1 || true']
+ commands=['command -v docker || true','command -v nginx || true','if ! command -v nginx >/dev/null 2>&1; then apt-get update -y && apt-get install -y nginx; fi','mkdir -p /opt/omnicodex/downloads && printf "<h1>OmniCodex Download Site</h1><p>Deployed by Agent</p>" > /opt/omnicodex/downloads/index.html','nginx -v 2>&1 || true','curl -fsS http://127.0.0.1/health || true']
  try:
   async with asyncssh.connect(host,username=username,client_keys=[key],known_hosts=KNOWN_HOSTS) as c:
    for i,cmd in enumerate(commands):
