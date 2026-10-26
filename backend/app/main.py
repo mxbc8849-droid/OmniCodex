@@ -28,7 +28,10 @@ class ProjectIn(BaseModel): name:str; snapshot:dict[str,Any]=Field(default_facto
 class ApprovalIn(BaseModel): command:str; ttl_seconds:int=300
 class ChatIn(BaseModel): messages:list[dict[str,str]]; model:str='openai/gpt-4o-mini'
 class SSHIn(BaseModel): host:str; username:str; command:str; port:int=22; private_key:str; approval_id:str
+class AgentTaskIn(BaseModel): prompt:str; target_host:str|None=None
 COMMAND_ALLOWLIST=tuple(x.strip() for x in os.getenv('COMMAND_ALLOWLIST','docker,systemctl,nginx,python3,python,bash,ls,cat,mkdir,cp,mv,chmod').split(',') if x.strip())
+TOOLS={'ssh':{'name':'SSH executor','available':True},'shell':{'name':'Shell command runner','available':True},'docker':{'name':'Docker','check':'docker --version'},'nginx':{'name':'Nginx','check':'nginx -v'},'python':{'name':'Python','check':'python3 --version'},'http':{'name':'HTTP health check','available':True}}
+agent_tasks:dict[str,dict[str,Any]]={}
 def ph(v):
  s=secrets.token_bytes(16); return base64.b64encode(s+hashlib.pbkdf2_hmac('sha256',v.encode(),s,210000)).decode()
 def pok(v,e):
@@ -48,6 +51,19 @@ async def current(token:str=Depends(oauth2)):
   return u
 async def publish(uid,event): await redis.publish(f'omnicodex:{uid}',json.dumps(event))
 app=FastAPI(title='OmniCodex Control Plane',version='0.2.0'); connections={}
+@app.get('/v1/agent/tools')
+async def agent_tools(user=Depends(current)): return {'tools':TOOLS}
+@app.post('/v1/agent/tasks')
+async def agent_task(d:AgentTaskIn,user=Depends(current)):
+ tid=str(uuid.uuid4()); steps=[{'id':'inspect','title':'检查目标服务器环境','tool':'ssh','status':'pending'},{'id':'install','title':'安装缺失工具','tool':'shell','status':'pending'},{'id':'deploy','title':'生成并部署服务','tool':'docker/nginx','status':'pending'},{'id':'verify','title':'健康检查并返回地址','tool':'http','status':'pending'}]
+ agent_tasks[tid]={'id':tid,'prompt':d.prompt,'target_host':d.target_host,'status':'planned','steps':steps,'created_at':datetime.now(timezone.utc).isoformat()}
+ await publish(user.id,{'type':'agent.task.created','task_id':tid,'steps':steps})
+ return agent_tasks[tid]
+@app.get('/v1/agent/tasks/{tid}')
+async def agent_task_status(tid:str,user=Depends(current)):
+ t=agent_tasks.get(tid)
+ if not t: raise HTTPException(404,'task not found')
+ return t
 @app.post('/v1/auth/register')
 async def register(d:Credentials):
  async with Session() as s:
