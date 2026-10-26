@@ -22,6 +22,10 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      AGENT_SSH_KEY: /run/secrets/agent_id_ed25519
+      AGENT_SSH_USER: root
+    secrets:
+      - agent_id_ed25519
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_started}
@@ -33,3 +37,6 @@ services:
       start_period: 20s
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
 volumes: {omnicodex_pg: {}, omnicodex_redis: {}}
+secrets:
+  agent_id_ed25519:
+    file: ./secrets/agent_id_ed25519

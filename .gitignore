@@ -5,3 +5,6 @@ test-results/
 .env
 .env.*
 !.env.production.example
+
+secrets/
+
