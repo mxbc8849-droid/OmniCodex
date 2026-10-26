@@ -28,7 +28,7 @@ class ProjectIn(BaseModel): name:str; snapshot:dict[str,Any]=Field(default_facto
 class ApprovalIn(BaseModel): command:str; ttl_seconds:int=300
 class ChatIn(BaseModel): messages:list[dict[str,str]]; model:str='openai/gpt-4o-mini'
 class SSHIn(BaseModel): host:str; username:str; command:str; port:int=22; private_key:str; approval_id:str
-class AgentTaskIn(BaseModel): prompt:str; target_host:str|None=None
+class AgentTaskIn(BaseModel): prompt:str; target_host:str|None=None; max_retries:int=2
 COMMAND_ALLOWLIST=tuple(x.strip() for x in os.getenv('COMMAND_ALLOWLIST','docker,systemctl,nginx,python3,python,bash,ls,cat,mkdir,cp,mv,chmod').split(',') if x.strip())
 TOOLS={'ssh':{'name':'SSH executor','available':True},'shell':{'name':'Shell command runner','available':True},'docker':{'name':'Docker','check':'docker --version'},'nginx':{'name':'Nginx','check':'nginx -v'},'python':{'name':'Python','check':'python3 --version'},'http':{'name':'HTTP health check','available':True}}
 agent_tasks:dict[str,dict[str,Any]]={}
@@ -55,8 +55,8 @@ app=FastAPI(title='OmniCodex Control Plane',version='0.2.0'); connections={}
 async def agent_tools(user=Depends(current)): return {'tools':TOOLS}
 @app.post('/v1/agent/tasks')
 async def agent_task(d:AgentTaskIn,user=Depends(current)):
- tid=str(uuid.uuid4()); steps=[{'id':'inspect','title':'检查目标服务器环境','tool':'ssh','status':'pending'},{'id':'install','title':'安装缺失工具','tool':'shell','status':'pending'},{'id':'deploy','title':'生成并部署服务','tool':'docker/nginx','status':'pending'},{'id':'verify','title':'健康检查并返回地址','tool':'http','status':'pending'}]
- agent_tasks[tid]={'id':tid,'prompt':d.prompt,'target_host':d.target_host,'status':'planned','steps':steps,'created_at':datetime.now(timezone.utc).isoformat()}
+ tid=str(uuid.uuid4()); steps=[{'id':'plan','title':'理解需求并生成执行计划','tool':'agent','status':'pending'},{'id':'inspect','title':'检查目标服务器环境','tool':'ssh','status':'pending'},{'id':'install','title':'自动安装缺失工具','tool':'installer','status':'pending'},{'id':'deploy','title':'生成配置并部署服务','tool':'shell/docker/nginx','status':'pending'},{'id':'verify','title':'健康检查并返回结果','tool':'http','status':'pending'}]
+ agent_tasks[tid]={'id':tid,'prompt':d.prompt,'target_host':d.target_host,'max_retries':min(max(d.max_retries,0),5),'status':'planned','steps':steps,'created_at':datetime.now(timezone.utc).isoformat()}
  await publish(user.id,{'type':'agent.task.created','task_id':tid,'steps':steps})
  return agent_tasks[tid]
 @app.get('/v1/agent/tasks/{tid}')
@@ -72,12 +72,18 @@ async def agent_task_run(tid:str,user=Depends(current)):
  key=os.getenv('AGENT_SSH_KEY','/run/secrets/agent_id_ed25519'); username=os.getenv('AGENT_SSH_USER','root')
  if not host or not os.path.exists(key): raise HTTPException(503,'agent SSH target or key is not configured')
  t['status']='running'; await publish(user.id,{'type':'agent.task.started','task_id':tid})
- commands=['command -v docker || true','command -v nginx || true','if ! command -v nginx >/dev/null 2>&1; then apt-get update -y && apt-get install -y nginx; fi','mkdir -p /opt/omnicodex/downloads && printf "<h1>OmniCodex Download Site</h1><p>Deployed by Agent</p>" > /opt/omnicodex/downloads/index.html','nginx -v 2>&1 || true','curl -fsS http://127.0.0.1/health || true']
+ commands=['command -v docker || true','command -v nginx || true','command -v python3 || true','if ! command -v nginx >/dev/null 2>&1; then apt-get update -y && apt-get install -y nginx; fi','if ! command -v docker >/dev/null 2>&1; then apt-get update -y && apt-get install -y docker.io docker-compose-plugin; fi','nginx -v 2>&1 || true','curl -fsS http://127.0.0.1/health || true']
  try:
   async with asyncssh.connect(host,username=username,client_keys=[key],known_hosts=KNOWN_HOSTS) as c:
    for i,cmd in enumerate(commands):
-    t['steps'][i if i<2 else 0]['status']='running'; await publish(user.id,{'type':'agent.step.running','task_id':tid,'command':cmd})
-    r=await c.run(cmd,check=False); await publish(user.id,{'type':'agent.step.output','task_id':tid,'command':cmd,'stdout':r.stdout,'stderr':r.stderr})
+    step=t['steps'][min(i+1,len(t['steps'])-1)]; step['status']='running'; await publish(user.id,{'type':'agent.step.running','task_id':tid,'command':cmd})
+    r=None
+    for attempt in range(t['max_retries']+1):
+     r=await c.run(cmd,check=False)
+     if r.exit_status==0: break
+     await publish(user.id,{'type':'agent.step.retry','task_id':tid,'attempt':attempt+1,'command':cmd})
+    if r and r.exit_status!=0: raise RuntimeError(r.stderr or f'command failed: {cmd}')
+    step['status']='completed'; await publish(user.id,{'type':'agent.step.output','task_id':tid,'command':cmd,'stdout':r.stdout if r else '','stderr':r.stderr if r else ''})
    t['status']='completed'; t['result']='environment inspected'; await publish(user.id,{'type':'agent.task.completed','task_id':tid})
    return t
  except Exception as e:
