@@ -24,8 +24,10 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       AGENT_SSH_KEY: /run/secrets/agent_id_ed25519
       AGENT_SSH_USER: root
+      SSH_KNOWN_HOSTS: /run/secrets/agent_known_hosts
     secrets:
       - agent_id_ed25519
+      - agent_known_hosts
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_started}
@@ -40,3 +42,6 @@ volumes: {omnicodex_pg: {}, omnicodex_redis: {}}
 secrets:
   agent_id_ed25519:
     file: ./secrets/agent_id_ed25519
+  agent_known_hosts:
+    file: ./secrets/known_hosts
+
